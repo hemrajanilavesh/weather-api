@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm create *)",
+      "Bash(npm install *)",
+      "Bash(npx tsc *)",
+      "Bash(npx *)",
+      "Bash(npm run *)",
+      "Bash(npm list *)",
+      "Bash(curl -s http://localhost:5173)",
+      "Bash(curl -s http://localhost:5173/api/v1/weather/current/London)",
+      "Bash(kill %1 %2)",
+      "Bash(curl -s 'http://localhost:8000/api/v1/weather/forecast/London')",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(list\\(d.keys\\(\\)\\)\\); print\\('entry keys:', list\\(d['entries'][0].keys\\(\\)\\) if d.get\\('entries'\\) else 'none'\\)\")",
+      "Bash(node /Users/hemrlav/claude-code-mini-max/weather-api/screenshots.mjs)"
+    ]
+  }
+}
