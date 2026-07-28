@@ -74,19 +74,142 @@ mypy app/
 | `DEBUG` | `false` | Enable debug mode |
 | `ALLOWED_ORIGINS` | `["*"]` | CORS allowed origins |
 
-## Project Structure
+## Project Structure & Architecture
 
+### Backend (FastAPI)
 ```
 app/
 ├── main.py              # App factory, lifespan
 ├── config.py            # Settings via pydantic-settings
 ├── dependencies.py      # Dependency injection factories
 ├── core/                # Database, exceptions, logging, middleware
+│   ├── database.py      # SQLAlchemy connection pool
+│   ├── exceptions.py    # Custom exception handlers
+│   ├── logging.py       # Structured logging
+│   └── middleware.py    # Request/response middleware
 ├── models/              # SQLAlchemy ORM
+│   ├── city.py          # City entity
+│   ├── weather_data.py  # Weather data entity
+│   └── favorite.py      # Favorite city entity
 ├── schemas/             # Pydantic v2 models
+│   ├── weather.py       # Weather response schemas
+│   ├── forecast.py      # Forecast schemas
+│   └── favorites.py     # Favorite schemas
 ├── services/            # Business logic layer
+│   ├── weather.py       # Weather data fetching & processing
+│   ├── analysis.py      # Data analysis & aggregation
+│   ├── favorites.py     # Favorite city management
+│   └── caching.py       # Redis/in-memory caching
 ├── routers/             # HTTP endpoint handlers
+│   ├── weather.py       # Weather endpoints
+│   ├── forecast.py      # Forecast endpoints
+│   └── favorites.py     # Favorites endpoints
 └── utils/               # Helpers
+    ├── cache.py          # Caching utilities
+    ├── validation.py     # Input validation
+    └── monitoring.py     # Health checks & metrics
+```
+
+### Frontend (React/Vite)
+```
+frontend/
+├── src/
+│   ├── components/      # Reusable UI components
+│   │   ├── dashboard/   # Dashboard specific components
+│   │   ├── charts/      # Chart components (Recharts)
+│   │   └── forms/       # Form components
+│   ├── pages/          # Page components
+│   │   ├── Dashboard/   # Main dashboard page
+│   │   ├── Weather/    # Weather detail page
+│   │   └── Favorites/  # Favorites page
+│   ├── services/       # API service layer
+│   │   ├── auth.js      # Authentication service
+│   │   ├── weather.js   # Weather API service
+│   │   └── favorites.js # Favorites API service
+│   ├── hooks/          # Custom React hooks
+│   │   ├── useWeather  # Weather data hooks
+│   │   └── useFavorites # Favorites hooks
+│   ├── stores/         # Zustand stores
+│   │   ├── weatherStore # Weather data store
+│   │   └── favoritesStore # Favorites store
+│   ├── utils/          # Utility functions
+│   │   ├── api.js       # API call utilities
+│   │   └── format.js   # Date/number formatting
+│   └── App.jsx         # Root component
+├── assets/              # Static assets
+├── components/          # Shared component definitions
+└── types/              # TypeScript types
+```
+
+### Architecture Flow
+```
+┌───────────────────┐     ┌───────────────────┐     ┌───────────────────┐
+│   Frontend UI     │ ◄─► │   Frontend API    │ ◄─► │    Backend API    │
+│   (React/Vite)    │     │   (Axios/WS)      │     │     (FastAPI)     │
+└───────────────────┘     └───────────────────┘     └───────────────────┘
+            │                                         │
+            ▼                                         ▼
+┌───────────────────┐                     ┌────────────────────────┐
+│   WebSocket       │                     │    Caching Layer       │
+│   (realtime)      │                     │    (Redis/Memory)      │
+└───────────────────┘                     └────────────────────────┘
+            │                                         │
+            └─────────────────────────────────────────┘
+                              │
+                              ▼
+                    ┌────────────────────────┐
+                    │   Database Layer       │
+                    │   (SQLite/Postgres)    │
+                    └────────────────────────┘
+```
+
+### Key Technologies
+
+| Layer | Technologies | Purpose |
+|-------|-------------|---------|
+| **Frontend** | React, Vite, TailwindCSS 4, Recharts, Zustand | UI & client-side state |
+| **Backend** | FastAPI, SQLAlchemy, Pydantic v2 | API & business logic |
+| **Cache** | Redis (prod), In-memory (dev) | Performance optimization |
+| **Database** | SQLite (dev), PostgreSQL (prod) | Data persistence |
+| **Auth** | OpenWeatherMap API, JWT tokens | Weather data source |
+| **Monitoring** | Health checks, structured logging, metrics | Observability |
+
+### Deployment Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                        Production Deployment Stack                        │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ Frontend (Vercel/Cloudflare)    ──────────────────────    Backend (Dockerized) │
+│                                                                            │
+│ ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐          │
+│ │ CDN Assets      │    │   Load Balancer  │    │  Container      │          │
+│ │ (Static Files)  │───►│ (nginx/Traefik)  │───►│  Orchestration  │          │
+│ └─────────────────┘    └─────────────────┘    └─────────────────┘          │
+│                                                                          │
+│ ┌─────────────────┐    ┌─────────────────┐                              │
+│ │ Monitoring      │◄────┤  Backend        │                              │
+│ │ & Logging       │    │  Services       │                              │
+│ └─────────────────┘    │  ────────────────┤                              │
+│                       │  │ API Services    │                              │
+│                       │  ├───────────────┐│                              │
+│                       │  │ Workers        ││                              │
+│                       │  ├───────────────┐│                              │
+│                       │  │ Queue/Tasks    ││                              │
+│                       │  └───────────────┘│                              │
+└───────────────────────┴───────────────────┴───────────────────────────────┘
+                                           │
+                                           ▼
+                                   ┌─────────────────┐
+                                   │ Infrastructure  │
+                                   │ (Kubernetes)    │
+                                   └─────────────────┘
+                                   │        │
+                                   ▼        ▼
+                           ┌─────────────────┐  ┌─────────────────┐
+                           │  Load Balancer   │  │  Monitoring     │
+                           │  (External)      │  │  & Observability │
+                           └─────────────────┘  └─────────────────┘
 ```
 
 ## Dashboard UI
